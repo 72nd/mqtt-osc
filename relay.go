@@ -22,8 +22,9 @@ func (l LogLevel) String() string {
 }
 
 // Logger is the log function used in the library. It takes the message
-// and defines the handling of this message.
-type Logger func(msg string, level LogLevel)
+// and defines the handling of this message. The message can be used as
+// format string.
+type Logger func(level LogLevel, format string, args ...interface{})
 
 // Relay provides the forwarding of messages from MQTT to OSC. It consist
 // contains a slice of Handlers each describing one MQTT event to be
@@ -59,7 +60,7 @@ func (r *Relay) Serve() {
 	opts.SetPassword(r.MqttPassword)
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		r.log(fmt.Sprintf("MQTT error, %s", token.Error()), LogError)
+		r.log(LogError, "MQTT error, %s", token.Error())
 		return
 	}
 
@@ -76,16 +77,16 @@ func (r *Relay) Serve() {
 // log a message using the in the LogFunc defined log method. If
 // no method is provided, the output is written to the standard
 // output.
-func (r Relay) log(msg string, level LogLevel) {
+func (r Relay) log(level LogLevel, format string, args ...interface{}) {
 	if r.LogFunc != nil {
 		var fn Logger
 		fn = *r.LogFunc
-		fn(msg, level)
+		fn(level, format, args)
 	} else {
 		if level == LogPanic {
-			panic(msg)
+			panic(fmt.Sprintf(format, args...))
 		}
-		fmt.Printf("%s: %s", level, msg)
+		fmt.Printf("%s: %s", level, fmt.Sprintf(format, args...))
 	}
 }
 
