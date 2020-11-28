@@ -15,14 +15,36 @@ func main() {
 		Name:  "mqtt-osc",
 		Usage: "relaying updates on MQTT topics to OSC",
 		Action: func(c *cli.Context) error {
+			_ = cli.ShowCommandHelp(c, c.Command.Name)
 			return nil
 		},
 		Commands: []*cli.Command{
 			{
-				Name:  "config",
-				Usage: "generate a new configuration file",
+				Name:    "config",
+				Aliases: []string{"cfg"},
+				Usage:   "generate a new configuration file",
 				Action: func(c *cli.Context) error {
+					createConfig(getPath(c))
 					return nil
+				},
+			},
+			{
+				Name:    "run",
+				Aliases: []string{"serve"},
+				Usage:   "run the relay",
+				Action: func(c *cli.Context) error {
+					if c.Bool("debug") {
+						logrus.SetLevel(logrus.DebugLevel)
+					}
+					run(getPath(c))
+					return nil
+				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:    "debug",
+						Aliases: []string{"d"},
+						Usage:   "enable debug mode",
+					},
 				},
 			},
 		},
@@ -32,11 +54,11 @@ func main() {
 	}
 }
 
-// getArgument tries to get the first positional argument given by the user.
+// getPath tries to get the first positional argument given by the user.
 // Or fatals with a error message.
-func getArgument(c *cli.Context) string {
+func getPath(c *cli.Context) string {
 	if c.Args().Len() != 1 {
-		logrus.Fatalf("one positional argument needed (path to config file)")
+		logrus.Fatal("one positional argument needed (path to config file)")
 	}
 	return c.Args().Get(0)
 }
@@ -44,11 +66,9 @@ func getArgument(c *cli.Context) string {
 // createConfig creates a new config file with default values and saves it to
 // the given path.
 func createConfig(path string) {
-	var logger mqttosc.Logger
-	logger = logFunc
 	relay := mqttosc.Relay{
 		MqttHost:     "127.0.0.1",
-		MqttPort:     6379,
+		MqttPort:     1883,
 		MqttClientId: "mqtt-osc-relay",
 		MqttUser:     "user",
 		MqttPassword: "secret",
@@ -58,7 +78,6 @@ func createConfig(path string) {
 				OscAddress: "/light/{{ .$1 }}/turn-on",
 			},
 		},
-		LogFunc: &logger,
 	}
 	data, err := yaml.Marshal(relay)
 	if err != nil {
@@ -67,6 +86,25 @@ func createConfig(path string) {
 	if err := ioutil.WriteFile(path, data, 0644); err != nil {
 		logrus.Fatalf("couldn't write config to %s, %s", path, data)
 	}
+}
+
+// run runs the relay.
+func run(path string) {
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		logrus.Fatalf("error loading configuration form %s, %s", path, err)
+	}
+	var relay mqttosc.Relay
+	if err := yaml.Unmarshal(raw, &relay); err != nil {
+		logrus.Fatalf("error unmarshalling configuration from %s, %s", path, err)
+	}
+
+	var logger mqttosc.Logger
+	logger = logFunc
+	relay.LogFunc = &logger
+
+	logrus.Infof("listen to MQTT broker %s:%d", relay.MqttHost, relay.MqttPort)
+	relay.Serve()
 }
 
 // logFunc defines the Logger function for the mqttosc.Relay using logrus.
@@ -82,5 +120,7 @@ func logFunc(msg string, level mqttosc.LogLevel) {
 		logrus.Warn(msg)
 	case mqttosc.LogError:
 		logrus.Error(msg)
+	case mqttosc.LogPanic:
+		logrus.Panic(msg)
 	}
 }
