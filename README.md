@@ -1,6 +1,6 @@
 # mqtt-osc
 
-[![GoDoc](https://godoc.org/github.com/72nd/mqtt-osc?status.svg)](https://godoc.org/github.com/72nd/mqtt-osc) [![Go Report Card](https://goreportcard.com/badge/github.com/72nd/mqtt-osc)](https://goreportcard.com/report/github.com/72nd/mqtt-osc)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GoDoc](https://godoc.org/github.com/72nd/mqtt-osc?status.svg)](https://godoc.org/github.com/72nd/mqtt-osc) [![Go Report Card](https://goreportcard.com/badge/github.com/72nd/mqtt-osc)](https://goreportcard.com/report/github.com/72nd/mqtt-osc)[![GitHub](https://img.shields.io/github/license/72nd/mqtt-osc)]
 
 <p align="center">
   <img width="512" src="misc/logo.png">
