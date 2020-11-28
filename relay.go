@@ -1,6 +1,7 @@
 package mqttosc
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -96,6 +97,10 @@ func (r Relay) log(level LogLevel, format string, args ...interface{}) {
 	}
 }
 
+// TranslateFunc is the function type used to alter the outgoing OSC
+// address template data and payload.
+type TranslateFunc func(topic string, data string) (tplData map[string]interface{}, payload string)
+
 // Hanlder listen to one MQTT event and describes the effects it will
 // have. This library contains some handler functions for the
 // most common cases.
@@ -119,7 +124,7 @@ type Handler struct {
 	// which will be applied to the template in the OSC address. Note that
 	// no keys beginning with `_` (ex `_1`) are allowed in this map as these
 	// are used to store the content of the wildcard match-groups.
-	Translage *func(topic string, data string) map[string]string `yaml:"-"`
+	Translate *TranslateFunc `yaml:"-"`
 	// RelayPayload states whether the MQTT message should be relayed to
 	// the OSC recipient.
 	RelayPayload bool `yaml:"relay_payload"`
@@ -135,7 +140,8 @@ type Handler struct {
 
 // init has to be called before using or registering the handler to the MQTT
 // client. The method sets the log function, determines the correct topicRegex
-// based on the MqttTopic and
+// based on the MqttTopic and. This method checks also if the Translate function
+// introduces any illegal keys (everything starting with `_`).
 func (h *Handler) init(logFunc Logger) error {
 	h.logFunc = logFunc
 	h.topicRegex = regexForTopic(h.MqttTopic)
@@ -147,13 +153,63 @@ func (h *Handler) init(logFunc Logger) error {
 		return err
 	}
 	h.oscAddressTemplate = tpl
+
+	if err := h.checkTranslate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkTranslate checks the output of the translate method given by the library
+// user. Will return an error if there is a template data key starting with an
+// underscore (`_`).
+func (h Handler) checkTranslate() error {
+	if h.Translate == nil {
+		return nil
+	}
+	var fn TranslateFunc
+	fn = *h.Translate
+	userData, _ := fn("", "")
+	for key, _ := range userData {
+		if strings.HasPrefix(key, "_") {
+			return fmt.Errorf("it's forbidden to introduce map elements with keys starting with '_'")
+		}
+	}
 	return nil
 }
 
 // onEvent is internally called when the MQTT topic was updated.
 func (h Handler) onEvent(client mqtt.Client, message mqtt.Message) {
 	h.logFunc(DebugLevel, "handler \"%s\" was triggered by message on topic \"%s\"", h.MqttTopic, message.Topic())
-	h.logFunc(DebugLevel, "lala: %s", h.topicRegex)
+
+	tplData := make(map[string]interface{}, 1)
+	// var payload string
+	if h.Translate != nil {
+		var fn TranslateFunc
+		fn = *h.Translate
+		tplData, _ = fn(message.Topic(), string(message.Payload()))
+	}
+	tplData = h.templateData(tplData, message.Topic())
+	var adr bytes.Buffer
+	if err := h.oscAddressTemplate.Execute(&adr, tplData); err != nil {
+		h.logFunc(ErrorLevel, "failed to execute template for OSC address %s, %s", h.OscAddress, err)
+	}
+}
+
+// templateData returns the map to apply on the oscAddressTemplate. It parses the
+// concrete content of any wildcards and adds this to the user chosen data from the
+// translate method. Topic parameter needs the concrete topic of the incoming MQTT
+// event.
+func (h Handler) templateData(userData map[string]interface{}, topic string) map[string]interface{} {
+	matches := h.topicRegex.FindStringSubmatch(topic)
+	for i := range matches {
+		if i == 0 {
+			continue
+		}
+		userData[fmt.Sprintf("_%d", i)] = matches[i]
+	}
+	return userData
 }
 
 // regexForTopic converts a given address for an MQTT topic to a regex to
