@@ -7,14 +7,27 @@ import (
 	"github.com/hypebeast/go-osc/osc"
 )
 
+// LogLevel describes the different levels of importance a logging message
+// can have.
 type LogLevel int
 
 const (
+	// TraceLevel represents the lowest logging level for tracing.
 	TraceLevel LogLevel = iota
+	// DebugLevel represents the second lowest logging level and is used for
+	// debug messages.
 	DebugLevel
+	// InfoLevel represents logging messages a user should see during the
+	// execution of the library.
 	InfoLevel
+	// WarnLevel represents the logging level if something noteworthy happened
+	// which likely could be or lead to unintended behavior.
 	WarnLevel
+	// ErrorLevel represents events which seriously intercept the execution
+	// of the application.
 	ErrorLevel
+	// PanicLevel represents events which will lead to a panicking of the
+	// application.
 	PanicLevel
 )
 

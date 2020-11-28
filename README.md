@@ -4,7 +4,7 @@
   <img width="512" src="misc/logo.png">
 </p>
 
-This library provides a mechanism to issue [Open Sound Control](https://en.wikipedia.org/wiki/Open_Sound_Control) messages on [MQTT](https://mqtt.org/) events. Currently the flow of information is only supported from OSC to MQTT. There is also a simple command line application providing the basic relaying of messages. Using the library provides much more power of control.
+This library provides a mechanism to issue [Open Sound Control](https://en.wikipedia.org/wiki/Open_Sound_Control) messages on [MQTT](https://mqtt.org/) events. Currently the flow of information is only supported from MQTT to OSC. There is also a simple command line application providing the basic relaying of messages. Using the library provides much more power of control.
 
 ## Usage CLI
 
@@ -32,7 +32,7 @@ osc_host: 127.0.0.1
 # Port of the OSC server where the OSC command should be sent to.
 osc_port: 8765
 # A list of handlers. Each handler defines a MQTT topic which will be
-# trigerred by. For more inforamtion see below.
+# trigerred by. For More information see below.
 handlers:
 - mqtt_topic: /light/+/on
   osc_address: /light/{{ ._1 }}/turn-on
@@ -41,8 +41,3 @@ handlers:
   relay_payload: false
 ```
 
-## Example Library
-
-```go
-
-```

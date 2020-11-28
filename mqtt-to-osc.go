@@ -15,7 +15,7 @@ import (
 // address template data and payload.
 type TranslateFunc func(topic string, data string) (tplData map[string]interface{}, payload string)
 
-// Hanlder listen to one MQTT event and describes the effects it will
+// MqttToOscHandler listen to one MQTT event and describes the effects it will
 // have. This library contains some handler functions for the
 // most common cases.
 //
