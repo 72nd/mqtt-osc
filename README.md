@@ -34,7 +34,7 @@ osc_host: 127.0.0.1
 # Port of the OSC server where the OSC command should be sent to.
 osc_port: 8765
 # A list of handlers. Each handler defines a MQTT topic which will be
-# trigerred by. For More information see below.
+# trigerred by. For more information see below.
 handlers:
 - mqtt_topic: /light/+/on
   osc_address: /light/{{ ._1 }}/turn-on
@@ -43,3 +43,6 @@ handlers:
   relay_payload: false
 ```
 
+Some hints for defining handlers: You can use `+` and `*` to wildcard parts of the MQTT topic address. While `+` wildcards only one level, `*` wildcards multiple levels. To prevent repetitive definitions it's possible to include the content of such wildcard parts into the output OSC address. Take the configuration file above. In this case the topic `/light/1/on` will trigger the handle and a OSC message will be sent to `/light/1/turn-on`. This match-groups can be accessed via the `{{ ._N }}` syntax whereby N stands for the count of the wildcard character in the MQTT topic from the left.
+
+If you need more flexibility in transpose incoming MQTT updates into OSC messages you have to use mqtt-osc as a library. This way you can use the full power of go's built in [templating system](https://golang.org/pkg/text/template/) with custom data and also alter the payload.
