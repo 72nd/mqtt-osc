@@ -75,7 +75,7 @@ func createConfig(path string) {
 		Handlers: []mqttosc.Handler{
 			{
 				MqttTopic:  "/light/+/on",
-				OscAddress: "/light/{{ .$1 }}/turn-on",
+				OscAddress: "/light/{{ ._1 }}/turn-on",
 			},
 		},
 	}

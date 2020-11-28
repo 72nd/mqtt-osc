@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -67,7 +68,10 @@ func (r *Relay) Serve() {
 	}
 
 	for i := range r.Handlers {
-		r.Handlers[i].init(*r.LogFunc)
+		if err := r.Handlers[i].init(*r.LogFunc); err != nil {
+			r.log(ErrorLevel, "couldn't initialize %s, %s", r.Handlers[i].MqttTopic, err)
+			return
+		}
 		token := client.Subscribe(r.Handlers[i].MqttTopic, 1, r.Handlers[i].onEvent)
 		token.Wait()
 	}
@@ -83,7 +87,7 @@ func (r Relay) log(level LogLevel, format string, args ...interface{}) {
 	if r.LogFunc != nil {
 		var fn Logger
 		fn = *r.LogFunc
-		fn(level, format, args)
+		fn(level, format, args...)
 	} else {
 		if level == PanicLevel {
 			panic(fmt.Sprintf(format, args...))
@@ -99,7 +103,7 @@ func (r Relay) log(level LogLevel, format string, args ...interface{}) {
 // To increase the flexibility of the handlers the output OSC Address
 // can contain template items. The Translate function can be used to
 // define the data for this template. The matching-groups from the MQTT
-// topic can be accessed by index using `{{ .$1 }}`. The content of the
+// topic can be accessed by index using `{{ ._1 }}`. The content of the
 // MQTT payload (also known as message) can be accessed using the
 // `{{ .Payload }}` argument.
 type Handler struct {
@@ -113,7 +117,7 @@ type Handler struct {
 	// OSC address and payload. It gets the concrete MQTT topic which was
 	// called as well as the payload (if any). It returns a map of strings
 	// which will be applied to the template in the OSC address. Note that
-	// no keys beginning with `$` (ex `$1`) are allowed in this map as these
+	// no keys beginning with `_` (ex `_1`) are allowed in this map as these
 	// are used to store the content of the wildcard match-groups.
 	Translage *func(topic string, data string) map[string]string `yaml:"-"`
 	// RelayPayload states whether the MQTT message should be relayed to
@@ -124,14 +128,26 @@ type Handler struct {
 	// topicRegex is the regular expression used to capture the wildcards as
 	// capture groups.
 	topicRegex *regexp.Regexp
+	// oscAddressTemplate is the template of the OSC address. The template is
+	// instantiated on initialization to safe some time on event trigger.
+	oscAddressTemplate *template.Template
 }
 
 // init has to be called before using or registering the handler to the MQTT
-// client. The method sets the log function as well as determine the correct
-// topicRegex based on the MqttTopic.
-func (h *Handler) init(logFunc Logger) {
+// client. The method sets the log function, determines the correct topicRegex
+// based on the MqttTopic and
+func (h *Handler) init(logFunc Logger) error {
 	h.logFunc = logFunc
 	h.topicRegex = regexForTopic(h.MqttTopic)
+
+	fmt.Println(h.OscAddress)
+
+	tpl, err := template.New(h.MqttTopic).Parse(h.OscAddress)
+	if err != nil {
+		return err
+	}
+	h.oscAddressTemplate = tpl
+	return nil
 }
 
 // onEvent is internally called when the MQTT topic was updated.
