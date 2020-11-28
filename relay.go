@@ -96,7 +96,9 @@ func (r Relay) log(msg string, level LogLevel) {
 // To increase the flexibility of the handlers the output OSC Address
 // can contain template items. The Translate function can be used to
 // define the data for this template. The matching-groups from the MQTT
-// topic can be accessed by index using `{{ .$1 }}`.
+// topic can be accessed by index using `{{ .$1 }}`. The content of the
+// MQTT payload (also known as message) can be accessed using the
+// `{{ .Payload }}` argument.
 type Handler struct {
 	// Path to the MQTT topic to be listen to.
 	MqttTopic string `yaml:"mqtt_topic"`
@@ -111,11 +113,13 @@ type Handler struct {
 	// no keys beginning with `$` (ex `$1`) are allowed in this map as these
 	// are used to store the content of the wildcard match-groups.
 	Translage *func(topic string, data string) map[string]string `yaml:"-"`
+	// RelayPayload states whether the MQTT message should be relayed to
+	// the OSC recipient.
+	RelayPayload bool `yaml:"relay_payload"`
 	// logFunc takes the logger function of the Handler's relay.
 	logFunc Logger `yaml:"-"`
 }
 
 // onEvent is internally called when the MQTT topic was updated.
 func (h Handler) onEvent(client mqtt.Client, message mqtt.Message) {
-	h.logFunc("hoi", LogInfo)
 }
