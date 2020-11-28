@@ -72,7 +72,7 @@ func createConfig(path string) {
 		MqttClientId: "mqtt-osc-relay",
 		MqttUser:     "user",
 		MqttPassword: "secret",
-		Handlers: []mqttosc.Handler{
+		Handlers: []mqttosc.MqttToOscHandler{
 			{
 				MqttTopic:  "/light/+/on",
 				OscAddress: "/light/{{ ._1 }}/turn-on",
