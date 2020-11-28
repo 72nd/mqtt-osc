@@ -2,6 +2,8 @@ package mqttosc
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -9,12 +11,12 @@ import (
 type LogLevel int
 
 const (
-	LogTrace LogLevel = iota
-	LogDebug
-	LogInfo
-	LogWarn
-	LogError
-	LogPanic
+	TraceLevel LogLevel = iota
+	DebugLevel
+	InfoLevel
+	WarnLevel
+	ErrorLevel
+	PanicLevel
 )
 
 func (l LogLevel) String() string {
@@ -60,12 +62,12 @@ func (r *Relay) Serve() {
 	opts.SetPassword(r.MqttPassword)
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		r.log(LogError, "MQTT error, %s", token.Error())
+		r.log(ErrorLevel, "MQTT error, %s", token.Error())
 		return
 	}
 
 	for i := range r.Handlers {
-		r.Handlers[i].logFunc = *r.LogFunc
+		r.Handlers[i].init(*r.LogFunc)
 		token := client.Subscribe(r.Handlers[i].MqttTopic, 1, r.Handlers[i].onEvent)
 		token.Wait()
 	}
@@ -83,7 +85,7 @@ func (r Relay) log(level LogLevel, format string, args ...interface{}) {
 		fn = *r.LogFunc
 		fn(level, format, args)
 	} else {
-		if level == LogPanic {
+		if level == PanicLevel {
 			panic(fmt.Sprintf(format, args...))
 		}
 		fmt.Printf("%s: %s", level, fmt.Sprintf(format, args...))
@@ -119,8 +121,36 @@ type Handler struct {
 	RelayPayload bool `yaml:"relay_payload"`
 	// logFunc takes the logger function of the Handler's relay.
 	logFunc Logger `yaml:"-"`
+	// topicRegex is the regular expression used to capture the wildcards as
+	// capture groups.
+	topicRegex *regexp.Regexp
+}
+
+// init has to be called before using or registering the handler to the MQTT
+// client. The method sets the log function as well as determine the correct
+// topicRegex based on the MqttTopic.
+func (h *Handler) init(logFunc Logger) {
+	h.logFunc = logFunc
+	h.topicRegex = regexForTopic(h.MqttTopic)
 }
 
 // onEvent is internally called when the MQTT topic was updated.
 func (h Handler) onEvent(client mqtt.Client, message mqtt.Message) {
+	h.logFunc(DebugLevel, "handler \"%s\" was triggered by message on topic \"%s\"", h.MqttTopic, message.Topic())
+	h.logFunc(DebugLevel, "lala: %s", h.topicRegex)
+}
+
+// regexForTopic converts a given address for an MQTT topic to a regex to
+// match the content of the wildcards against it.
+func regexForTopic(topic string) *regexp.Regexp {
+	parts := strings.Split(topic, "/")
+	rsl := make([]string, len(parts))
+	for i, part := range parts {
+		if part == "+" || part == "*" {
+			rsl[i] = "(.*)"
+		} else {
+			rsl[i] = part
+		}
+	}
+	return regexp.MustCompile(strings.Join(rsl, "/"))
 }

@@ -110,17 +110,17 @@ func run(path string) {
 // logFunc defines the Logger function for the mqttosc.Relay using logrus.
 func logFunc(level mqttosc.LogLevel, format string, args ...interface{}) {
 	switch level {
-	case mqttosc.LogTrace:
-		logrus.Tracef(format, args)
-	case mqttosc.LogDebug:
-		logrus.Debugf(format, args)
-	case mqttosc.LogInfo:
-		logrus.Info(format, args)
-	case mqttosc.LogWarn:
-		logrus.Warn(format, args)
-	case mqttosc.LogError:
-		logrus.Error(format, args)
-	case mqttosc.LogPanic:
-		logrus.Panic(format, args)
+	case mqttosc.TraceLevel:
+		logrus.Tracef(format, args...)
+	case mqttosc.DebugLevel:
+		logrus.Debugf(format, args...)
+	case mqttosc.InfoLevel:
+		logrus.Infof(format, args...)
+	case mqttosc.WarnLevel:
+		logrus.Warnf(format, args...)
+	case mqttosc.ErrorLevel:
+		logrus.Errorf(format, args...)
+	case mqttosc.PanicLevel:
+		logrus.Panicf(format, args...)
 	}
 }
