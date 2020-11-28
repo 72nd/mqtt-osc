@@ -2,17 +2,19 @@ package mqttosc
 
 import (
 	"fmt"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type LogLevel int
 
 const (
-	Trace LogLevel = iota
-	Debug
-	Info
-	Warn
-	Error
+	LogTrace LogLevel = iota
+	LogDebug
+	LogInfo
+	LogWarn
+	LogError
+	LogPanic
 )
 
 func (l LogLevel) String() string {
@@ -42,15 +44,33 @@ type Relay struct {
 	// Handlers is the collection of handler the relay handles.
 	Handlers []Handler `yaml:"handlers"`
 	// LogFunc provides the possibility to customize the log functionality.
-	// The function is called on each debug log. If no method is set, the
-	// debug output will be outputted to standard output.
+	// The function is called on each log. If no method is set, the debug
+	// output will be outputted to standard output.
 	LogFunc *Logger `yaml:"-"`
 }
 
 // Serve starts the MQTT client and waits for incoming updates on the topics
 // define by the handlers.
-func (r Relay) Serve() {
+func (r *Relay) Serve() {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", r.MqttHost, r.MqttPort))
+	opts.SetClientID(r.MqttClientId)
+	opts.SetUsername(r.MqttUser)
+	opts.SetPassword(r.MqttPassword)
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		r.log(fmt.Sprintf("MQTT error, %s", token.Error()), LogError)
+		return
+	}
 
+	for i := range r.Handlers {
+		r.Handlers[i].logFunc = *r.LogFunc
+		token := client.Subscribe(r.Handlers[i].MqttTopic, 1, r.Handlers[i].onEvent)
+		token.Wait()
+	}
+
+	for {
+	}
 }
 
 // log a message using the in the LogFunc defined log method. If
@@ -62,6 +82,9 @@ func (r Relay) log(msg string, level LogLevel) {
 		fn = *r.LogFunc
 		fn(msg, level)
 	} else {
+		if level == LogPanic {
+			panic(msg)
+		}
 		fmt.Printf("%s: %s", level, msg)
 	}
 }
@@ -88,8 +111,11 @@ type Handler struct {
 	// no keys beginning with `$` (ex `$1`) are allowed in this map as these
 	// are used to store the content of the wildcard match-groups.
 	Translage *func(topic string, data string) map[string]string `yaml:"-"`
+	// logFunc takes the logger function of the Handler's relay.
+	logFunc Logger `yaml:"-"`
 }
 
 // onEvent is internally called when the MQTT topic was updated.
-func (h Handler) onEvent() {
+func (h Handler) onEvent(client mqtt.Client, message mqtt.Message) {
+	h.logFunc("hoi", LogInfo)
 }
