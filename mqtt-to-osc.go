@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/hypebeast/go-osc/osc"
 )
 
 // TranslateFunc is the function type used to alter the outgoing OSC
@@ -45,21 +46,21 @@ type MqttToOscHandler struct {
 	logFunc Logger `yaml:"-"`
 	// topicRegex is the regular expression used to capture the wildcards as
 	// capture groups.
-	topicRegex *regexp.Regexp
+	topicRegex *regexp.Regexp `yaml:"-"`
 	// oscAddressTemplate is the template of the OSC address. The template is
 	// instantiated on initialization to safe some time on event trigger.
-	oscAddressTemplate *template.Template
+	oscAddressTemplate *template.Template `yaml:"-"`
+	// oscClient is the OSC client.
+	oscClient *osc.Client `yaml:"-"`
 }
 
 // init has to be called before using or registering the handler to the MQTT
 // client. The method sets the log function, determines the correct topicRegex
 // based on the MqttTopic and. This method checks also if the Translate function
 // introduces any illegal keys (everything starting with `_`).
-func (h *MqttToOscHandler) init(logFunc Logger) error {
+func (h *MqttToOscHandler) init(logFunc Logger, oscClient *osc.Client) error {
 	h.logFunc = logFunc
 	h.topicRegex = regexForTopic(h.MqttTopic)
-
-	fmt.Println(h.OscAddress)
 
 	tpl, err := template.New(h.MqttTopic).Parse(h.OscAddress)
 	if err != nil {
@@ -70,6 +71,8 @@ func (h *MqttToOscHandler) init(logFunc Logger) error {
 	if err := h.checkTranslate(); err != nil {
 		return err
 	}
+
+	h.oscClient = oscClient
 
 	return nil
 }
@@ -84,7 +87,7 @@ func (h MqttToOscHandler) checkTranslate() error {
 	var fn TranslateFunc
 	fn = *h.Translate
 	userData, _ := fn("", "")
-	for key, _ := range userData {
+	for key := range userData {
 		if strings.HasPrefix(key, "_") {
 			return fmt.Errorf("it's forbidden to introduce map elements with keys starting with '_'")
 		}
@@ -97,17 +100,25 @@ func (h MqttToOscHandler) onEvent(client mqtt.Client, message mqtt.Message) {
 	h.logFunc(DebugLevel, "handler \"%s\" was triggered by message on topic \"%s\"", h.MqttTopic, message.Topic())
 
 	tplData := make(map[string]interface{}, 1)
-	// var payload string
+	var payload string
 	if h.Translate != nil {
 		var fn TranslateFunc
 		fn = *h.Translate
-		tplData, _ = fn(message.Topic(), string(message.Payload()))
+		tplData, payload = fn(message.Topic(), string(message.Payload()))
+	} else if h.RelayPayload {
+		payload = string(message.Payload())
 	}
 	tplData = h.templateData(tplData, message.Topic())
 	var adr bytes.Buffer
 	if err := h.oscAddressTemplate.Execute(&adr, tplData); err != nil {
 		h.logFunc(ErrorLevel, "failed to execute template for OSC address %s, %s", h.OscAddress, err)
 	}
+
+	msg := osc.NewMessage(adr.String())
+	if payload != "" {
+		msg.Append(payload)
+	}
+	h.oscClient.Send(msg)
 }
 
 // templateData returns the map to apply on the oscAddressTemplate. It parses the

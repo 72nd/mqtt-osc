@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/hypebeast/go-osc/osc"
 )
 
 type LogLevel int
@@ -68,8 +69,9 @@ func (r *Relay) Serve() {
 		return
 	}
 
+	oscClient := osc.NewClient(r.OscHost, r.OscPort)
 	for i := range r.Handlers {
-		if err := r.Handlers[i].init(*r.LogFunc); err != nil {
+		if err := r.Handlers[i].init(*r.LogFunc, oscClient); err != nil {
 			r.log(ErrorLevel, "couldn't initialize %s, %s", r.Handlers[i].MqttTopic, err)
 			return
 		}
