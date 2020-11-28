@@ -42,6 +42,10 @@ type Relay struct {
 	// MqttUser states the password used for the authentication
 	// with the MQTT broker.
 	MqttPassword string `yaml:"mqtt_password"`
+	// OscHost is the hostname of the OSC server.
+	OscHost string `yaml:"osc_host"`
+	// OscPort is the port of the OSC server.
+	OscPort int `yaml:"osc_port"`
 	// Handlers is the collection of handler the relay handles.
 	Handlers []MqttToOscHandler `yaml:"handlers"`
 	// LogFunc provides the possibility to customize the log functionality.
