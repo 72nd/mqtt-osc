@@ -1,6 +1,6 @@
 # mqtt-osc
 
-[![PkgGoDev](https://pkg.go.dev/badge/72nd/mqtt-osc)](https://pkg.go.dev/72nd/mqtt-osc) [![Go Report Card](https://goreportcard.com/badge/github.com/72nd/mqtt-osc)](https://goreportcard.com/report/github.com/72nd/mqtt-osc) ![GitHub](https://img.shields.io/github/license/72nd/mqtt-osc)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/72nd/mqtt-osc)](https://pkg.go.dev/github.com/72nd/mqtt-osc) [![Go Report Card](https://goreportcard.com/badge/github.com/72nd/mqtt-osc)](https://goreportcard.com/report/github.com/72nd/mqtt-osc) ![GitHub](https://img.shields.io/github/license/72nd/mqtt-osc)
 
 <p align="center">
   <img width="512" src="misc/logo.png">
